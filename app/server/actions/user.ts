@@ -38,7 +38,6 @@ export const getAllUsers = createServerFn("GET", async () => {
   })
 
   const data = await res.json()
-  console.log(data);
   
   return json(data)
 });

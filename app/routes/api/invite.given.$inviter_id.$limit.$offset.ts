@@ -20,8 +20,6 @@ export const Route = createAPIFileRoute(
       .offset(parseInt(offset))
       .execute()
 
-    console.log('invites', invites)
-
     return json(invites)
   },
 })

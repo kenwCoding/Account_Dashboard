@@ -1,5 +1,3 @@
-# Only1 Developer Task
-You are given 2 days max to complete the following task.
 ## Requirements
 You are to use the following libraries:
 - TypeScript 5.5

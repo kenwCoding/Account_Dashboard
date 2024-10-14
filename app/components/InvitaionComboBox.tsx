@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import { Button, ComboBox, Input, Label, ListBox, ListBoxItem, Popover, Switch } from "react-aria-components";
-import { createInvite } from "../server/actions/invite";
+import { Button, ComboBox, Dialog, DialogTrigger, Heading, Input, Label, ListBox, ListBoxItem, Modal, ModalOverlay, Popover, Switch } from "react-aria-components";
+import { createInvite, updateInvitePermissions } from "../server/actions/invite";
 import { InvitationState, Permission, Permissions } from "../server/db/interfaces";
 
 interface InvitationComboBoxProps {
@@ -38,10 +38,12 @@ export function InvitationComboBox(props: InvitationComboBoxProps) {
   const ref = useRef<HTMLInputElement>(null);
   const [targetUser, setTargetUser] = useState({ id: null, username: null } as { id: number | null, username: string | null });
   const [permissions, setPermissions] = useState<Permissions>(initialPermissions);
+  const [currentInviteId, setCurrentInviteId] = useState<number | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   return (
     <>
-      <div className="bg-white border rounded-lg px-2 py-2 w-80">
+      <div className="bg-white border rounded-lg px-2 w-80">
         <ComboBox
           className='p-2 mb-2'
           onSelectionChange={(e) => {
@@ -49,12 +51,16 @@ export function InvitationComboBox(props: InvitationComboBoxProps) {
 
             if (!key) {
               setPermissions(initialPermissions)
+              setCurrentInviteId(null);
               setTargetUser({ id: null, username: null });
               return;
             }
 
-            const selectedIndex = parseInt(key.replace('react-aria-', ''));            
-            setPermissions(givenInvites.find(invite => invite.invitee_user_id === users[selectedIndex - 1].id)?.permissions || initialPermissions)
+            const selectedIndex = parseInt(key.replaceAll('react-aria-', ''));
+            const existingInvite = givenInvites.find(invite => invite.invitee_user_id === users[selectedIndex - 1].id)
+            setPermissions(existingInvite?.permissions || initialPermissions)
+            
+            setCurrentInviteId(existingInvite?.id || null);
             setTargetUser({
               id: users[selectedIndex - 1].id,
               username: users[selectedIndex - 1].username,
@@ -152,32 +158,124 @@ export function InvitationComboBox(props: InvitationComboBoxProps) {
               </div>
             )
         })}
+          
         <div className="mx-1 mt-4 mb-2">
-          <Button
-            className={`
-              rounded-md
-              px-4 py-2 
-              font-bold
-              uppercase
-              w-full
-              text-white
-              bg-blue-500
-              hover:bg-blue-600
-              disabled:text-gray-400
-              disabled:bg-gray-100
-            `}
-            type="button"
-            isDisabled={!targetUser.id}
-            onPress={async () => {
-              if (targetUser && targetUser.id && permissions) {                
-                const result = await createInvite({inviteeId: targetUser.id, permissions});
-                console.log(result);
-                
+            <Button
+              className={`
+                rounded-md
+                px-4 py-2 
+                font-bold
+                uppercase
+                w-full
+                text-white
+                bg-blue-500
+                hover:bg-blue-600
+                disabled:text-gray-400
+                disabled:bg-gray-100
+              `}
+              type="button"
+              isDisabled={!targetUser.id}
+              onPress={() => setIsDialogOpen(true)}
+            >
+              {currentInviteId
+                ? <small>Update</small>
+                : <small>Invite</small>
               }
-            }}
-          >
-            <small>Invite</small>
-          </Button>
+            </Button>
+        </div>
+      </div>
+      <div
+        className={`fixed top-0 left-0 ${isDialogOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'} transition-opacity duration-300 h-screen w-screen z-[10000] bg-black bg-opacity-50 flex justify-center items-center`}
+      >
+        <div
+          className={ `
+            w-full max-w-md overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl
+            ${isDialogOpen ? 'animate-in zoom-in-95 ease-out duration-300' : ''}
+            ${!isDialogOpen ? 'animate-out zoom-out-95 ease-in duration-200' : ''}
+          `}
+        >
+          <div className="text-center w-full">
+            <h1 className="text-2xl uppercase font-bold mb-4">Confirmation</h1>
+          </div>
+          <div className="">
+            Are you sure you want to <span className="font-bold uppercase">{currentInviteId ? 'update' : 'invite'}</span>:
+          </div>
+          <div className="border rounded-lg px-4 py-1 my-2 bg-emerald-700 text-white w-fit">
+            <small className="text-lg">{targetUser.username}</small>
+          </div>
+          <hr className="my-3"/>
+          <div>
+            with <span className="font-bold uppercase">permissions</span>:
+          </div>
+          <div className="flex flex-col gap-2 my-2">
+            {Object.entries(permissions).map(([key, value]) => {
+              if (value) {
+                return (
+                  <div key={key} className="flex justify-between items-center text-green-700 uppercase">
+                    <div><small className="font-bold">+ {key.replaceAll('_', ' ')}</small></div>
+                    <div><small>Allowed</small></div>
+                  </div>
+                )
+              } else {
+                return (
+                  <div key={key} className="flex justify-between items-center text-red-700 uppercase">
+                    <div><small className="font-bold">- {key.replaceAll('_', ' ')}</small></div>
+                    <div><small>Not Allowed</small></div>
+                  </div>
+                )
+              }
+            })}
+          </div>
+          <div className="flex justify-between items-center">
+          <div className="mt-4">
+            <Button
+              className={`
+                rounded-md
+                px-4 py-2 
+                font-bold
+                uppercase
+                w-full
+                text-black
+                bg-gray-100
+                hover:bg-gray-200
+              `}
+              type="button"
+              onPress={() => {
+                setIsDialogOpen(false)
+              }}
+            >
+              <small>Cancel</small>
+            </Button>
+          </div>
+          <div>
+            <Button
+              className={`
+                rounded-md
+                px-4 py-2 
+                font-bold
+                uppercase
+                w-full
+                text-white
+                bg-blue-500
+                hover:bg-blue-600
+              `}
+              type="button"
+              onPress={async () => {
+                if (targetUser && targetUser.id && permissions) {     
+                  if (currentInviteId) {                          
+                    await updateInvitePermissions({inviteId: currentInviteId, permissions});
+                  } else {
+                    const result = await createInvite({inviteeId: targetUser.id, permissions}) as unknown as Invite[];                          
+                    setCurrentInviteId(result[0].id);
+                  }
+                  setIsDialogOpen(false);
+                }
+              }}
+            >
+              <small>Confirm</small>
+            </Button>
+          </div>
+          </div>
         </div>
       </div>
     </>

@@ -5,30 +5,15 @@ import { getCookie } from 'vinxi/http'
 
 export const Route = createAPIFileRoute('/api/invite/permission')({
   PUT: async ({ request, params }) => {
-    const id = getCookie('authed')
-    const { inviteeId, permission } = await request.json()
-
-    if (!id) {
-      return new Response(
-        JSON.stringify({ error: 'Missing Auth Cookies' }),
-        {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      )
-    }
-
-    const parsedId = JSON.parse(id)
+    const { inviteId, permissions, id } = await request.json()
 
     const updatedInvite = await db
       .updateTable('permission_invite')
       .set({
-        permissions: permission,
+        permissions: permissions,
       })
-      .where('invitee_user_id', '=', inviteeId)
-      .where('inviter_user_id', '=', parsedId.id)
+      .where('id', '=', inviteId)
+      .where('inviter_user_id', '=', id)
       .returningAll()
       .execute()
 
